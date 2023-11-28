@@ -6,11 +6,11 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.ListView;
-import javafx.scene.control.TableView;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
+import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.stage.Stage;
+import java.util.Comparator;
+import javafx.collections.FXCollections;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -33,14 +33,6 @@ public class TaskManagerController {
 //    private TableView finishedTasks;
     @FXML
     private Button editTasks;
-    @FXML
-    private ListView<Task> inProgressTasksView;
-    @FXML
-    private ListView<Task> completedTasksView;
-    @FXML
-    private ListView<Task> priorityTasksView;
-    @FXML
-    private ListView<Map.Entry<String, Task>> allTasksView;
 
     @FXML
     private TextField taskNameField;
@@ -61,19 +53,61 @@ public class TaskManagerController {
     private ObservableList<Task> priorityTasksObservable = FXCollections.observableArrayList();
     private ObservableList<Map.Entry<String, Task>> allTasksObservable = FXCollections.observableArrayList();
 
+    @FXML
+    private TableView<Task> inProgressTasksTable;
+    @FXML
+    private TableColumn<Task, String> inProgressIdColumn;
+    @FXML
+    private TableColumn<Task, String> inProgressDescriptionColumn;
+    @FXML
+    private TableColumn<Task, Integer> inProgressPriorityColumn;
+    @FXML
+    private TableColumn<Task, String> inProgressAssignedPersonColumn;
+    @FXML
+    private TableColumn<Task, String> inProgressDueDateColumn;
+    @FXML
+    private TableView<Task> completedTasksTable;
+    @FXML
+    private TableColumn<Task, String> completedIdColumn;
+    @FXML
+    private TableColumn<Task, String> completedDescriptionColumn;
+    @FXML
+    private TableColumn<Task, Integer> completedPriorityColumn;
+    @FXML
+    private TableColumn<Task, String> completedDueDateColumn;
+    @FXML
+    private TableColumn<Task, String> completedAssignedPersonColumn;
+
     public void setUsername(String username) {
         this.username = username;
     }
 
     @FXML
     public void initialize() {
-        inProgressTasksView.setItems(inProgressTasksObservable);
-        completedTasksView.setItems(completedTasksObservable);
-        priorityTasksView.setItems(priorityTasksObservable);
-        allTasksView.setItems(allTasksObservable);
+
+        // TODO
+        // DEBUGGER REMEMBER TO REMOVE IN REAL RUN
+        inProgressTasksObservable.add(new Task("1", "Test Task", 1, "Test Person", "tomorrow"));
+
+        inProgressDueDateColumn.setCellValueFactory(new PropertyValueFactory<>("dueDate"));
+        inProgressIdColumn.setCellValueFactory(new PropertyValueFactory<>("id"));
+        inProgressDescriptionColumn.setCellValueFactory(new PropertyValueFactory<>("description"));
+        inProgressPriorityColumn.setCellValueFactory(new PropertyValueFactory<>("priority"));
+        inProgressAssignedPersonColumn.setCellValueFactory(new PropertyValueFactory<>("assignedPerson"));
+
+        inProgressTasksTable.setItems(inProgressTasksObservable);
+
+        completedIdColumn.setCellValueFactory(new PropertyValueFactory<>("id"));
+        completedDescriptionColumn.setCellValueFactory(new PropertyValueFactory<>("description"));
+        completedPriorityColumn.setCellValueFactory(new PropertyValueFactory<>("priority"));
+        completedDueDateColumn.setCellValueFactory(new PropertyValueFactory<>("dueDate"));
+        completedAssignedPersonColumn.setCellValueFactory(new PropertyValueFactory<>("assignedPerson"));
+
+        completedTasksTable.setItems(completedTasksObservable);
+
     }
 
-
+    // will handle the logout button
     @FXML
     private void handleLogout()
     {
@@ -90,7 +124,7 @@ public class TaskManagerController {
 
     //TODO add methods for task operations such as: add, completed tasks, prioritize tasks
 
-
+    // handles the add task button
     @FXML
     private void handleAddTaskButtonAction() {
         try {
@@ -100,22 +134,22 @@ public class TaskManagerController {
             int priority = Integer.parseInt(priorityField.getText());
             String assignedPerson = assignedPersonField.getText();
 
-            Task newTask = new Task(id, name, priority, assignedPerson);
-            addTask(newTask, true);
+            Task newTask = new Task(id, name, priority, assignedPerson, dueDate);
+            addTask(newTask, true);  // Add the task
 
-            // will clear the text fields after adding the task
             taskNameField.clear();
             dueDateField.clear();
             priorityField.clear();
             assignedPersonField.clear();
         } catch (NumberFormatException e) {
-            e.printStackTrace();
+            e.printStackTrace(); // Consider more user-friendly error handling
         }
     }
 
+
     @FXML
     private void handleFinishTaskButtonAction() {
-        Task selectedTask = inProgressTasksView.getSelectionModel().getSelectedItem();
+        Task selectedTask = inProgressTasksTable.getSelectionModel().getSelectedItem();
         if (selectedTask != null) {
             completeTask(selectedTask);
         } else {
@@ -124,57 +158,114 @@ public class TaskManagerController {
     }
 
     @FXML
-    private void handleEditTasksButtonAction() {
-        Task selectedTask = allTasksView.getSelectionModel().getSelectedItem().getValue();
+    private void handleEditTaskButtonAction() {
+        Task selectedTask = inProgressTasksTable.getSelectionModel().getSelectedItem();
         if (selectedTask != null) {
-            // TODO
-            taskNameField.setText(selectedTask.getDescription());
-        } else {
+            try {
+                String newDescription = taskNameField.getText(); // Assuming taskNameField is used for editing description
+                int newPriority = Integer.parseInt(priorityField.getText());
+                String newAssignedPerson = assignedPersonField.getText();
 
+                // Update the task properties
+                selectedTask.descriptionProperty().set(newDescription);
+                selectedTask.priorityProperty().set(newPriority);
+                selectedTask.assignedPersonProperty().set(newAssignedPerson);
+
+                // Clear the input fields after editing
+                taskNameField.clear();
+                priorityField.clear();
+                assignedPersonField.clear();
+            } catch (NumberFormatException e) {
+                e.printStackTrace(); // Consider more user-friendly error handling
+            }
+        } else {
+            // Handle case where no task is selected
         }
     }
 
+
     public void addTask(Task task, boolean writeToDisk) {
+        inProgressTasksObservable.add(task); // Add all tasks to this list
+        allTasks.put(task.getId(), task);
+
         if (task.getPriority() > 0) {
             priorityTasks.add(task);
             priorityTasksObservable.add(task);
         } else {
             inProgressTasks.add(task);
-            inProgressTasksObservable.add(task);
         }
-        allTasks.put(task.getId(), task);
+
         Map.Entry<String, Task> entry = new AbstractMap.SimpleEntry<>(task.getId(), task);
         allTasksObservable.add(entry);
 
-        // will write to the txt file
         if (writeToDisk) {
-            // Write to the txt file
             try (BufferedWriter writer = new BufferedWriter(new FileWriter(this.username + ".txt", true))) {
                 String taskData = convertTaskToString(task);
-                writer.newLine();  // Start a new line for the task
+                writer.newLine();
                 writer.write(taskData);
             } catch (IOException e) {
-                e.printStackTrace();  // Log or handle the error appropriately
+                e.printStackTrace();
             }
         }
     }
 
+
     // will convert task to string for the txt file
     private String convertTaskToString(Task task) {
-        return task.getId() + "," + task.getDescription() + "," + task.getPriority() + "," + task.getAssignedPerson();
+        return task.getId() + "," + task.getDescription() + "," + task.getPriority() + "," + task.getAssignedPerson() + "," + task.getDueDate();
     }
 
     // method to complete a task
     public void completeTask(Task task) {
+        // will remove the task from the in progress tableview
         inProgressTasks.remove(task);
         inProgressTasksObservable.remove(task);
 
+        // will add the task to the completed tableview
         completedTasks.push(task);
-        completedTasksObservable.add(0, task); // add at the top of the stack
+        completedTasksObservable.add(0, task);
 
+        task.setCompleted(true);
+
+        // remove from prio queue
         if (task.getPriority() > 0) {
             priorityTasks.remove(task);
             priorityTasksObservable.remove(task);
+        }
+        saveAllTasksToFile();
+    }
+
+    // will save changes to file
+    private void saveAllTasksToFile() {
+        File file = new File(this.username + ".txt");
+        String firstLine = ""; // to store the first line/password
+
+        // read and store the first line
+        if (file.exists()) {
+            try (Scanner scanner = new Scanner(file)) {
+                if (scanner.hasNextLine()) {
+                    firstLine = scanner.nextLine(); // Read the password
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        // rewrites the file with the updated tableview
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+            writer.write(firstLine);
+            writer.newLine();
+
+            for (Task task : allTasks.values()) {
+                String taskData = convertTaskToString(task);
+                if (completedTasks.contains(task)) {
+                    taskData += "~"; // will append '~' for completed tasks
+                }
+                writer.write(taskData);
+                writer.newLine();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -214,13 +305,32 @@ public class TaskManagerController {
         File file = new File(username + ".txt");
         if (file.exists()) {
             try (Scanner scanner = new Scanner(file)) {
+                // Skip the first line (password)
                 if (scanner.hasNextLine()) {
-                    scanner.nextLine();  // will skip the first line sinc e it's the password
+                    scanner.nextLine();
                 }
+
                 while (scanner.hasNextLine()) {
                     String taskData = scanner.nextLine();
                     Task task = convertStringToTask(taskData);
-                    addTask(task, false);
+
+                    // Check if the task is completed and add to the appropriate list
+                    if (task.isCompleted()) {
+                        completedTasks.push(task);
+                        completedTasksObservable.add(task);
+                    } else {
+                        inProgressTasks.add(task);
+                        inProgressTasksObservable.add(task);
+                    }
+
+                    // Add to priority queue if needed
+                    if (task.getPriority() > 0) {
+                        priorityTasks.add(task);
+                        priorityTasksObservable.add(task);
+                    }
+
+                    // Add to all tasks map
+                    allTasks.put(task.getId(), task);
                 }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -228,10 +338,27 @@ public class TaskManagerController {
         }
     }
 
-    private Task convertStringToTask(String taskData) {
-        String[] parts = taskData.split(",");
 
-        return new Task(parts[0], parts[1], Integer.parseInt(parts[2]), parts[3]);
+    private Task convertStringToTask(String taskData) {
+        boolean isCompleted = taskData.endsWith("~");
+        if (isCompleted) {
+            taskData = taskData.substring(0, taskData.length() - 1); // Remove the '~'
+        }
+
+        String[] parts = taskData.split(",");
+        Task task = new Task(parts[0], parts[1], Integer.parseInt(parts[2]), parts[3], parts[4]);
+        task.setCompleted(isCompleted);
+        return task;
+    }
+
+    @FXML
+    private void handleSortButtonAction() {
+        sortTasksByPriority(inProgressTasksObservable);
+        sortTasksByPriority(completedTasksObservable);
+    }
+
+    private void sortTasksByPriority(ObservableList<Task> tasks) {
+        FXCollections.sort(tasks, Comparator.comparingInt(Task::getPriority));
     }
 
 }
